@@ -2,6 +2,7 @@
 <html>
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+
 <style type="text/css">
 * {
   box-sizing: border-box;
@@ -9,6 +10,7 @@
 body {
   font-family: Arial, Helvetica, sans-serif;
 }
+
 #chatlog {
   position: fixed;
   top: 0;
@@ -19,23 +21,29 @@ body {
   padding: 8px;
   overflow-wrap: break-word;
 }
+
 #chatlog span.username {
   font-weight: bold;
 }
+
 #spacer {
   height: calc(100vh - 32px - 5em);
 }
+
 #roster {
   font-weight: bold;
   padding: 8px;
 }
+
 p {
   margin-top: 0;
   margin-bottom: 8px;
 }
+
 p:last-of-type {
   margin: 0;
 }
+
 #roster {
   position: fixed;
   right: 0;
@@ -44,13 +52,16 @@ p:last-of-type {
   width: 200px;
   border-left: none;
 }
+
 ::-webkit-scrollbar {
   display: none;
 }
+
 @media(max-width:600px) {
   #roster { display: none; }
   #chatlog { right: 0; }
 }
+
 #chat-input {
   position: fixed;
   width: 100%;
@@ -62,6 +73,7 @@ p:last-of-type {
   padding-left: 32px;
   outline: none;
 }
+
 #chatroom::before {
   z-index: 1;
   display: block;
@@ -77,6 +89,7 @@ p:last-of-type {
   color: #888;
   -webkit-text-stroke-width: 2px;
 }
+
 #name-form {
   position: fixed;
   z-index: 3;
@@ -86,6 +99,7 @@ p:last-of-type {
   right: 0;
   background-color: white;
 }
+
 #name-input {
   position: fixed;
   font-size: 200%;
@@ -97,12 +111,14 @@ p:last-of-type {
   text-align: center;
   border: 1px solid #bbb;
 }
+
 #name-form p {
   position: fixed;
   top: calc(50% + 3em);
   width: 100%;
   text-align: center;
 }
+
 #room-form {
   position: fixed;
   z-index: 2;
@@ -115,6 +131,7 @@ p:last-of-type {
   margin-top: calc(50vh - 3em);
   text-align: center;
 }
+
 #room-name {
   font-size: inherit;
   border: 1px solid #bbb;
@@ -122,41 +139,69 @@ p:last-of-type {
   width: 16em;
   padding-left: 1em;
 }
+
 #room-form button {
   font-size: inherit;
   border: 1px solid #bbb;
   background-color: #eee;
   height: 2em;
 }
+
 @media(max-width:660px) {
   #name-input, #room-form { font-size: 150%; }
   #name-form p { font-size: 75%; }
 }
+
 @media(max-width:500px) {
   #name-input, #room-form { font-size: 100%; }
   #name-form p { font-size: 50%; }
 }
-#go-public {
-  width: 4em;
+
+#go-public { width: 4em; }
+#go-private { width: 20em; }
+
+/* 🔹 AI Summarize button */
+#summarize-btn {
+  position: fixed;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  padding: 6px 14px;
+  font-size: 14px;
+  border: 1px solid #bbb;
+  background: #f4f4f4;
+  cursor: pointer;
+  display: none;
 }
-#go-private {
-  width: 20em;
+
+#summarize-btn:hover {
+  background: #eaeaea;
 }
 </style>
   </head>
+
   <body>
     <form id="name-form" action="/fake-form-action">
       <input id="name-input" placeholder="your name">
       <p>This chat runs entirely on the edge, powered by<br>
-        <a href="https://blog.cloudflare.com/introducing-workers-durable-objects" target="_blank">Cloudflare Workers Durable Objects</a></p>
+        <a href="https://blog.cloudflare.com/introducing-workers-durable-objects" target="_blank">
+          Cloudflare Workers Durable Objects
+        </a>
+      </p>
     </form>
+
     <form id="room-form" action="/fake-form-action">
       <p>Enter a public room:</p>
-      <input id="room-name" placeholder="room name"><button id="go-public">Go &raquo;</button>
+      <input id="room-name" placeholder="room name">
+      <button id="go-public">Go &raquo;</button>
       <p>OR</p>
       <button id="go-private">Create a Private Room &raquo;</button>
     </form>
+
     <form id="chatroom" action="/fake-form-action">
+      <button id="summarize-btn" type="button">Summarize with AI</button>
+
       <div id="chatlog">
         <div id="spacer"></div>
       </div>
@@ -178,9 +223,9 @@ let chatroom = document.querySelector("#chatroom");
 let chatlog = document.querySelector("#chatlog");
 let chatInput = document.querySelector("#chat-input");
 let roster = document.querySelector("#roster");
+let summarizeBtn = document.querySelector("#summarize-btn");
 
 let isAtBottom = true;
-
 let username;
 let roomname;
 
@@ -200,7 +245,8 @@ function startNameChooser() {
 
   nameInput.addEventListener("input", event => {
     if (event.currentTarget.value.length > 32) {
-      event.currentTarget.value = event.currentTarget.value.slice(0, 32);
+      event.currentTarget.value =
+        event.currentTarget.value.slice(0, 32);
     }
   });
 
@@ -224,13 +270,7 @@ function startRoomChooser() {
     }
   });
 
-  roomNameInput.addEventListener("input", event => {
-    if (event.currentTarget.value.length > 32) {
-      event.currentTarget.value = event.currentTarget.value.slice(0, 32);
-    }
-  });
-
-  goPublicButton.addEventListener("click", event => {
+  goPublicButton.addEventListener("click", () => {
     roomname = roomNameInput.value;
     if (roomname.length > 0) {
       startChat();
@@ -242,12 +282,10 @@ function startRoomChooser() {
     goPublicButton.disabled = true;
     event.currentTarget.disabled = true;
 
-    let response = await fetch("https://" + hostname + "/api/room", {method: "POST"});
-    if (!response.ok) {
-      alert("something went wrong");
-      document.location.reload();
-      return;
-    }
+    let response = await fetch(
+      "https://" + hostname + "/api/room",
+      { method: "POST" }
+    );
 
     roomname = await response.text();
     startChat();
@@ -258,129 +296,95 @@ function startRoomChooser() {
 
 function startChat() {
   roomForm.remove();
+  summarizeBtn.style.display = "block";
 
-  roomname = roomname.replace(/[^a-zA-Z0-9_-]/g, "").replace(/_/g, "-").toLowerCase();
-
-  if (roomname.length > 32 && !roomname.match(/^[0-9a-f]{64}$/)) {
-    addChatMessage("ERROR", "Invalid room name.");
-    return;
-  }
+  roomname = roomname
+    .replace(/[^a-zA-Z0-9_-]/g, "")
+    .replace(/_/g, "-")
+    .toLowerCase();
 
   document.location.hash = "#" + roomname;
-
-  chatInput.addEventListener("keydown", event => {
-    if (event.keyCode == 38) {
-      chatlog.scrollBy(0, -50);
-    } else if (event.keyCode == 40) {
-      chatlog.scrollBy(0, 50);
-    } else if (event.keyCode == 33) {
-      chatlog.scrollBy(0, -chatlog.clientHeight + 50);
-    } else if (event.keyCode == 34) {
-      chatlog.scrollBy(0, chatlog.clientHeight - 50);
-    }
-  });
 
   chatroom.addEventListener("submit", event => {
     event.preventDefault();
     if (currentWebSocket) {
-      currentWebSocket.send(JSON.stringify({message: chatInput.value}));
+      currentWebSocket.send(
+        JSON.stringify({ message: chatInput.value })
+      );
       chatInput.value = "";
       chatlog.scrollBy(0, 1e8);
     }
   });
 
-  chatInput.addEventListener("input", event => {
-    if (event.currentTarget.value.length > 256) {
-      event.currentTarget.value = event.currentTarget.value.slice(0, 256);
-    }
-  });
-
-  chatlog.addEventListener("scroll", event => {
-    isAtBottom = chatlog.scrollTop + chatlog.clientHeight >= chatlog.scrollHeight;
-  });
-
-  chatInput.focus();
-
-  document.body.addEventListener("click", event => {
-    if (window.getSelection().toString() == "") {
-      chatInput.focus();
-    }
-  });
-
-  if ('visualViewport' in window) {
-    window.visualViewport.addEventListener('resize', function() {
-      if (isAtBottom) {
-        chatlog.scrollBy(0, 1e8);
-      }
+  summarizeBtn.addEventListener("click", async () => {
+let messages = [];
+    chatlog.querySelectorAll("p").forEach(p => {
+      // innerText includes the "Name: " prefix, which helps the AI understand context
+      messages.push(p.innerText);
     });
-  }
+
+    if (messages.length === 0) {
+      alert("No messages to summarize!");
+      return;
+    }
+
+    // 2. Set UI to loading state
+    const originalText = summarizeBtn.innerText;
+    summarizeBtn.innerText = "🤖 Reading...";
+    summarizeBtn.disabled = true;
+    summarizeBtn.style.cursor = "wait";
+
+    try {
+      // 3. Call the API defined in chat.mjs
+      const response = await fetch("/api/summarize", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ messages: messages })
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to connect to AI service");
+      }
+
+      const data = await response.json();
+
+      // 4. Display the result in the chat log locally
+      // We add a newline (\n) before the summary for formatting
+      addChatMessage("✨ AI Summary", "\n" + data.summary);
+
+    } catch (error) {
+      console.error(error);
+      alert("Error generating summary. Please try again.");
+    } finally {
+      // 5. Reset UI
+      summarizeBtn.innerText = originalText;
+      summarizeBtn.disabled = false;
+      summarizeBtn.style.cursor = "pointer";
+    }
+  });
 
   join();
 }
 
-let lastSeenTimestamp = 0;
-let wroteWelcomeMessages = false;
-
 function join() {
   const wss = document.location.protocol === "http:" ? "ws://" : "wss://";
-  let ws = new WebSocket(wss + hostname + "/api/room/" + roomname + "/websocket");
-  let rejoined = false;
-  let startTime = Date.now();
-
-  let rejoin = async () => {
-    if (!rejoined) {
-      rejoined = true;
-      currentWebSocket = null;
-
-      while (roster.firstChild) {
-        roster.removeChild(roster.firstChild);
-      }
-
-      let timeSinceLastJoin = Date.now() - startTime;
-      if (timeSinceLastJoin < 10000) {
-        await new Promise(resolve => setTimeout(resolve, 10000 - timeSinceLastJoin));
-      }
-
-      join();
-    }
-  };
+  let ws = new WebSocket(
+    wss + hostname + "/api/room/" + roomname + "/websocket"
+  );
 
   ws.addEventListener("open", () => {
     currentWebSocket = ws;
-    ws.send(JSON.stringify({name: username}));
+    ws.send(JSON.stringify({ name: username }));
   });
 
   ws.addEventListener("message", event => {
     let data = JSON.parse(event.data);
-
-    if (data.error) {
-      addChatMessage(null, "* Error: " + data.error);
-    } else if (data.joined) {
-      let p = document.createElement("p");
-      p.innerText = data.joined;
-      roster.appendChild(p);
-    } else if (data.quit) {
-      for (let child of roster.childNodes) {
-        if (child.innerText == data.quit) {
-          roster.removeChild(child);
-          break;
-        }
-      }
-    } else if (data.ready) {
-      if (!wroteWelcomeMessages) {
-        wroteWelcomeMessages = true;
-        addChatMessage(null, "* Welcome to #" + roomname + ". Say hi!");
-      }
-    } else {
-      if (data.timestamp > lastSeenTimestamp) {
-        addChatMessage(data.name, data.message);
-        lastSeenTimestamp = data.timestamp;
-      }
+    if (data.message) {
+      addChatMessage(data.name, data.message);
     }
   });
-
-  ws.addEventListener("close", () => rejoin());
-  ws.addEventListener("error", () => rejoin());
 }
 
 function addChatMessage(name, text) {
@@ -393,9 +397,7 @@ function addChatMessage(name, text) {
   }
   p.appendChild(document.createTextNode(text));
   chatlog.appendChild(p);
-  if (isAtBottom) {
-    chatlog.scrollBy(0, 1e8);
-  }
+  chatlog.scrollBy(0, 1e8);
 }
 
 startNameChooser();

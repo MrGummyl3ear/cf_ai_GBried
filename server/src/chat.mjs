@@ -18,6 +18,12 @@ async function handleErrors(request, func) {
 
 export default {
   async fetch(request, env) {
+    const url = new URL(request.url);
+
+    if (url.pathname === "/api/summarize" && request.method === "POST") {
+      return handleSummarize(request, env);
+    }
+
     return await handleErrors(request, async () => {
       let url = new URL(request.url);
       let path = url.pathname.slice(1).split("/");
@@ -74,6 +80,38 @@ async function handleApiRequest(path, request, env) {
     default:
       return new Response("Not found", { status: 404 });
   }
+}
+
+async function handleSummarize(request, env) {
+  const { messages } = await request.json();
+
+  if (!messages || !Array.isArray(messages) || messages.length === 0) {
+    return new Response("No messages to summarize", { status: 400 });
+  }
+
+  const trimmed = messages.slice(-100); // cost control
+
+  const prompt = `
+Summarize the following chat conversation in 5 concise bullet points.
+Do not include usernames unless relevant.
+
+Conversation:
+${trimmed.join("\n")}
+`;
+
+  const result = await env.AI.run(
+    "@cf/meta/llama-3-8b-instruct",
+    {
+      messages: [
+        { role: "system", content: "You summarize chat conversations." },
+        { role: "user", content: prompt }
+      ]
+    }
+  );
+
+  return Response.json({
+    summary: result.response
+  });
 }
 
 export class ChatRoom {

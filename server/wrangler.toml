@@ -17,3 +17,6 @@ fallthrough = false
 [[migrations]]
 tag = "v1"                                   
 new_sqlite_classes = ["ChatRoom", "RateLimiter"]
+
+[ai]
+binding = "AI"
