@@ -1,4 +1,4 @@
-import HTML from "./chat.html";
+import HTML from "../../client/src/index.html";
 
 async function handleErrors(request, func) {
   try {
@@ -49,8 +49,27 @@ async function handleApiRequest(path, request, env) {
     case "room": {
       if (!path[1]) {
         if (request.method == "POST") {
-          let id = env.rooms.newUniqueId();
-          return new Response(id.toString(), {
+          // Generate a short, human-friendly room name (15 chars)
+          // We base36-encode the Durable Object hex id and take the first 15 characters.
+          // This keeps the name compact while retaining plenty of entropy.
+          let fullHex = env.rooms.newUniqueId().toString(); // e.g. 64 hex chars
+          let shortName;
+          try {
+            shortName = BigInt('0x' + fullHex).toString(36).slice(0, 15);
+            // ensure length is exactly 15 by padding with safe chars if needed
+            if (shortName.length < 15) {
+              const padChars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+              while (shortName.length < 15) {
+                shortName += padChars[Math.floor(Math.random() * padChars.length)];
+              }
+            }
+          } catch (e) {
+            // Fallback: take first 15 hex chars
+            shortName = fullHex.slice(0, 15);
+          }
+
+          // Return the short name (clients will call /api/room/<shortName>)
+          return new Response(shortName, {
             headers: { "Access-Control-Allow-Origin": "*" },
           });
         } else {

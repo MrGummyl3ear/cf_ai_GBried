@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cloudflare Chat — Modern UI</title>
+  <meta name="description" content="A lightweight real-time chat demo">
+
+  <style>
+    :root{
+      --bg:#0f1724;
+      --panel:#0b1220;
+      --muted:#94a3b8;
+      --accent:#7c5cff;
+      --accent-2:#3dd3c6;
+      --msg-from:#15202b;
+      --msg-to:#1f2937;
+      --glass: rgba(255,255,255,0.03);
+      --radius:12px;
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;color:#e6eef8;background:linear-gradient(180deg,var(--bg) 0%, #071022 100%);-webkit-font-smoothing:antialiased}
+
+    .app{
+      display:flex;height:100vh;width:100vw;align-items:stretch;gap:20px;padding:20px;
+    }
+
+    .left{
+      flex:1;display:flex;flex-direction:column;border-radius:var(--radius);background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));box-shadow: 0 6px 24px rgba(0,0,0,0.45);overflow:hidden;min-width:0;
+    }
+
+    header{
+      display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid rgba(255,255,255,0.03);
+    }
+
+    .brand{display:flex;gap:12px;align-items:center}
+    .logo{width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:18px}
+    .title{font-weight:700}
+    .subtitle{font-size:12px;color:var(--muted)}
+
+    main.chat-area{flex:1;display:flex;flex-direction:column;padding:16px;overflow:hidden}
+    .messages{flex:1;overflow:auto;padding:10px 6px;display:flex;flex-direction:column;gap:8px}
+
+    .bubble{max-width:70%;padding:10px 14px;border-radius:14px;color:#e6eef8;line-height:1.35}
+    .from{align-self:flex-start;background:linear-gradient(180deg,var(--msg-from),#0b1720);border-top-left-radius:6px}
+    .me{align-self:flex-end;background:linear-gradient(180deg,var(--msg-to),#123);
+      border-top-right-radius:6px}
+
+    .meta{font-size:12px;color:var(--muted);margin-bottom:6px}
+
+    footer.controls{display:flex;padding:12px;border-top:1px solid rgba(255,255,255,0.03);gap:8px}
+    .input{flex:1;background:var(--glass);border:1px solid rgba(255,255,255,0.03);border-radius:10px;padding:10px 12px;color:inherit;outline:none}
+    button.send{background:linear-gradient(90deg,var(--accent),var(--accent-2));border:none;color:white;padding:10px 14px;border-radius:10px;font-weight:600;cursor:pointer}
+    button.secondary{background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--muted);padding:8px 10px;border-radius:8px;cursor:pointer}
+
+    aside.roster{width:260px;border-radius:var(--radius);background:linear-gradient(180deg, rgba(255,255,255,0.015), rgba(255,255,255,0.01));padding:14px;display:flex;flex-direction:column}
+    .roster h4{margin:0 0 8px 0;font-size:13px}
+    .users{display:flex;flex-direction:column;gap:8px;overflow:auto}
+    .user{display:flex;gap:10px;align-items:center}
+    .avatar{width:36px;height:36px;border-radius:9px;background:linear-gradient(180deg,#2b3646,#12202b);display:flex;align-items:center;justify-content:center;color:#9fb3c9}
+
+    /* Room/name screens (center modal) */
+    .overlay{position:fixed;inset:0;background:linear-gradient(180deg,rgba(2,6,23,0.6),rgba(2,6,23,0.9));display:flex;align-items:center;justify-content:center;z-index:50}
+    .modal{background:linear-gradient(180deg,#071228,#071a2d);padding:28px;border-radius:14px;min-width:320px;border:1px solid rgba(255,255,255,0.03);box-shadow:0 10px 40px rgba(0,0,0,0.6)}
+    .modal h2{margin:0 0 12px}
+    .modal input{width:100%;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit}
+    .modal .row{display:flex;gap:8px;margin-top:12px}
+
+    @media(max-width:900px){.app{padding:12px}.roster{display:none}}
+
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="left">
+      <header>
+        <div class="brand">
+          <div class="logo">CF</div>
+          <div>
+            <div class="title">Cloudflare Chat</div>
+            <div class="subtitle" id="room-title">public</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="secondary" id="summarize-btn" style="display:none">✨ Summarize</button>
+        </div>
+      </header>
+
+      <main class="chat-area">
+        <div class="messages" id="chatlog">
+          <!-- messages injected here -->
+        </div>
+
+        <footer class="controls">
+          <input id="chat-input" class="input" placeholder="Type a message and press Enter" autocomplete="off" />
+          <button class="send" id="send-btn">Send</button>
+        </footer>
+      </main>
+    </div>
+
+    <aside class="roster">
+      <h4>Users in room</h4>
+      <div class="users" id="roster"></div>
+      <div style="margin-top:auto;font-size:12px;color:var(--muted);padding-top:10px">Tip: create a private room to invite friends</div>
+    </aside>
+  </div>
+
+  <!-- Room / name modal -->
+  <div class="overlay" id="overlay">
+    <div class="modal">
+      <h2>Join a room</h2>
+      <input id="name-input" placeholder="Your display name (max 15 chars)" maxlength="15" />
+      <div style="height:12px"></div>
+      <input id="room-name" placeholder="Room name (alphanumeric)" />
+      <div class="row">
+        <button id="go-public" class="send">Join</button>
+        <button id="go-private" class="secondary">Create private room</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  // Minimal, modern rewrite of the original chat logic + roster/URL updates
+  const overlay = document.getElementById('overlay');
+  const nameInput = document.getElementById('name-input');
+  const roomInput = document.getElementById('room-name');
+  const goPublic = document.getElementById('go-public');
+  const goPrivate = document.getElementById('go-private');
+  const chatInput = document.getElementById('chat-input');
+  const sendBtn = document.getElementById('send-btn');
+  const chatlog = document.getElementById('chatlog');
+  const roster = document.getElementById('roster');
+  const summarizeBtn = document.getElementById('summarize-btn');
+  const roomTitle = document.getElementById('room-title');
+
+  let username = '';
+  let roomname = '';
+  let ws = null;
+  const rosterUsers = new Set();
+
+  // simple helpers
+  function sanitizeRoom(n){return n.replace(/[^a-zA-Z0-9_-]/g,'').replace(/_/g,'-').toLowerCase().slice(0,32)}
+
+  function renderRoster(){
+    roster.innerHTML='';
+    Array.from(rosterUsers).sort().forEach(u=>{
+      const el = document.createElement('div'); el.className='user';
+      const avatar = document.createElement('div'); avatar.className='avatar'; avatar.innerText = (u[0]||'?').toUpperCase();
+      const name = document.createElement('div'); name.innerText = u;
+      el.appendChild(avatar); el.appendChild(name);
+      roster.appendChild(el);
+    });
+  }
+
+  function addMessage(name, text){
+    const wrapper = document.createElement('div');
+    wrapper.className = 'bubble from';
+
+    if(name === username){ wrapper.className = 'bubble me' }
+
+    const meta = document.createElement('div'); meta.className='meta'; meta.innerText = name ? name+" • " + new Date().toLocaleTimeString() : '';
+    const content = document.createElement('div'); content.innerText = text;
+
+    wrapper.appendChild(meta); wrapper.appendChild(content);
+    chatlog.appendChild(wrapper);
+    chatlog.scrollTop = chatlog.scrollHeight;
+
+    // Update roster when we see messages from a user
+    if(name && name !== '✨ AI Summary'){
+      rosterUsers.add(name);
+      renderRoster();
+    }
+  }
+
+  function handleJoined(name){
+    if(!name) return;
+    rosterUsers.add(name);
+    renderRoster();
+    addMessage(undefined, `${name} joined`);
+  }
+
+  function handleQuit(name){
+    if(!name) return;
+    rosterUsers.delete(name);
+    renderRoster();
+    addMessage(undefined, `${name} left`);
+  }
+
+  async function requestPrivateRoom(){
+    goPrivate.disabled = true; goPrivate.innerText = 'Creating...';
+    try{
+      const res = await fetch('https://' + window.location.host + '/api/room', {method:'POST'});
+      roomname = await res.text();
+      startChat();
+    }catch(e){alert('Could not create private room'); console.error(e)}
+    finally{goPrivate.disabled = false; goPrivate.innerText = 'Create private room'}
+  }
+
+  function bindUI(){
+    sendBtn.addEventListener('click', sendMessage);
+    chatInput.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); sendMessage(); } });
+
+    summarizeBtn.addEventListener('click', async()=>{
+      const paragraphs = Array.from(chatlog.querySelectorAll('.bubble div:last-child')).map(d=>d.innerText);
+      if(paragraphs.length===0){ alert('No messages to summarize'); return; }
+      const original = summarizeBtn.innerText; summarizeBtn.innerText='🤖 Reading...'; summarizeBtn.disabled=true;
+      try{
+        const res = await fetch('/api/summarize',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:paragraphs})});
+        if(!res.ok) throw new Error('AI service error');
+        const data = await res.json(); addMessage('✨ AI Summary', data.summary);
+      }catch(e){console.error(e); alert('Summary failed');}
+      finally{summarizeBtn.innerText=original; summarizeBtn.disabled=false}
+    });
+
+    // allow copying room link by clicking title
+    roomTitle.style.cursor = 'pointer';
+    roomTitle.title = 'Click to copy room link';
+    roomTitle.addEventListener('click', async ()=>{
+      try{ await navigator.clipboard.writeText(location.href); roomTitle.style.opacity = 0.6; setTimeout(()=>roomTitle.style.opacity=1,700); }catch(e){ /* ignore */ }
+    });
+  }
+
+  function sendMessage(){
+    if(!ws || ws.readyState!==WebSocket.OPEN) return;
+    const v = chatInput.value.trim(); if(!v) return; ws.send(JSON.stringify({message:v})); chatInput.value='';
+  }
+
+  function startChat(){
+    overlay.style.display='none';
+    roomTitle.innerText = roomname;
+    summarizeBtn.style.display = 'inline-block';
+
+    // reflect room in URL without reloading
+    try{ history.replaceState(null, '', '#'+roomname); }catch(e){ location.hash = '#'+roomname; }
+
+    rosterUsers.clear(); renderRoster();
+
+    const scheme = (location.protocol === 'http:') ? 'ws://' : 'wss://';
+    ws = new WebSocket(scheme + window.location.host + '/api/room/' + roomname + '/websocket');
+
+    ws.addEventListener('open', ()=>{ ws.send(JSON.stringify({name: username})); });
+
+    ws.addEventListener('message', e=>{
+      try{
+        const d = JSON.parse(e.data);
+        if(d.message) addMessage(d.name, d.message);
+        if(d.joined) handleJoined(d.joined);
+        if(d.quit) handleQuit(d.quit);
+      }catch(err){ console.error(err); }
+    });
+
+    bindUI();
+  }
+
+  // flow
+  goPublic.addEventListener('click', ()=>{
+    username = nameInput.value.trim(); roomname = sanitizeRoom(roomInput.value);
+    if(!username || !roomname) return alert('Enter both name and room');
+    startChat();
+  });
+
+  goPrivate.addEventListener('click', ()=>{
+    username = nameInput.value.trim();
+    if(!username) return alert('Enter a name');
+    if (username.length > 15) {
+      username = username.slice(0, 15);
+      nameInput.value = username; // reflect truncation in the input
+    }
+    requestPrivateRoom();
+  });
+
+  // if url hash contains room, prefill
+  if(location.hash.length>1){ roomInput.value = location.hash.slice(1); }
+
+})();
+</script>
+</body>
+</html>
