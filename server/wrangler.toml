@@ -1,0 +1,19 @@
+name = "gbrief-server"
+compatibility_date = "2024-09-23"
+
+main = "src/chat.mjs"
+
+[durable_objects]
+bindings = [
+  { name = "rooms", class_name = "ChatRoom" },
+  { name = "limiters", class_name = "RateLimiter" },
+]
+
+[[rules]]
+type = "Data"
+globs = ["**/*.html"]
+fallthrough = false
+
+[[migrations]]
+tag = "v1"                                   
+new_sqlite_classes = ["ChatRoom", "RateLimiter"]
