@@ -1,7 +1,7 @@
 name = "gbrief-server"
 compatibility_date = "2024-09-23"
 
-main = "src/chat.mjs"
+main = "server/src/chat.mjs"
 
 [durable_objects]
 bindings = [
